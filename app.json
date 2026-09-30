@@ -49,8 +49,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "4302d869-d8c1-4534-b6c0-c60bf08bb62c"
+        "projectId": "0f791057-f7cd-4c7b-a0f0-a5ab9f32165a"
       }
-    }
+    },
+    "owner": "codesapphire"
   }
 }
