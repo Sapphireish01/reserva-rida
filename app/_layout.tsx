@@ -1,16 +1,38 @@
 import React, { useEffect } from "react";
 import { LogBox } from "react-native";
 import { Slot } from "expo-router";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  QueryClient,
+  QueryClientProvider,
+  QueryCache,
+  MutationCache,
+} from "@tanstack/react-query";
 import { useFonts, Diplomata_400Regular } from "@expo-google-fonts/diplomata";
 import * as SplashScreen from "expo-splash-screen";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { useToastStore } from "../src/state/toastStore";
+import { AppToast, ErrorBoundary } from "../src/components/ui";
 
 LogBox.ignoreLogs(["SafeAreaView has been deprecated"]);
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      // If data already exists, background refresh failed: notify user non-intrusively
+      if (query.state.data !== undefined) {
+        useToastStore.getState().showError(error);
+      }
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error, _variables, _context, mutation) => {
+      if (!(mutation.meta as any)?.suppressToast) {
+        useToastStore.getState().showError(error);
+      }
+    },
+  }),
   defaultOptions: {
     queries: {
       retry: 1,
@@ -37,9 +59,12 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
-        <Slot />
-      </QueryClientProvider>
+      <ErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <Slot />
+          <AppToast />
+        </QueryClientProvider>
+      </ErrorBoundary>
     </SafeAreaProvider>
   );
 }

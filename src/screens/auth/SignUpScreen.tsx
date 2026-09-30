@@ -19,6 +19,8 @@ import { useSignUpMutation } from "../../hooks/useAuth";
 import { AuthStackParamList } from "../../navigation/types";
 import { SignupFormValues, signupSchema } from "../../schemas/signup";
 import { colors, spacing, typography } from "../../theme/colors";
+import { normalizeApiError } from "../../utils/errorUtils";
+import { useToastStore } from "../../state/toastStore";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "SignUp">;
 
@@ -55,36 +57,21 @@ export const SignUpScreen = ({ navigation }: Props) => {
           email: values.email,
           phoneNumber: values.phone.replace(/[^0-9]/g, ""),
           countryCode: callingCode,
-          gender: values.gender,
+          gender: values.gender ? (values.gender.charAt(0).toUpperCase() + values.gender.slice(1).toLowerCase()) : "Male",
           password: values.password,
-          referralCode: values.referralCode || undefined,
+          userType: "CUSTOMER",
         };
 
         const data = await signUp(payload);
-        console.log("📡 [API Response] POST /auth/signup payload:", data);
+        console.log("📡 [API Response] POST /accounts/register/ payload:", data);
 
-        const driverId = (data as any)?.driverId ?? (data as any)?.id ?? "mock-driver-123";
-        navigation.navigate("VerificationMethod", { driverId });
+        // After successful signup, route users back to login screen for login
+        useToastStore.getState().showSuccess("Account created successfully! Please log in.", "Registration Successful");
+        navigation.navigate("Login");
       } catch (err: any) {
         console.error("❌ [API Error] useSignUpMutation failed:", err?.response?.data || err?.message);
-        const backendData = err?.response?.data;
-        let errorMessage = "Failed to create account. Please try again.";
-        if (typeof backendData === "string") {
-          errorMessage = backendData;
-        } else if (backendData && typeof backendData === "object") {
-          const firstKey = Object.keys(backendData)[0];
-          const firstVal = backendData[firstKey];
-          if (Array.isArray(firstVal)) {
-            errorMessage = `${firstKey}: ${firstVal.join(", ")}`;
-          } else if (typeof firstVal === "string") {
-            errorMessage = `${firstKey}: ${firstVal}`;
-          } else {
-            errorMessage = backendData.message || backendData.detail || backendData.error || JSON.stringify(backendData);
-          }
-        } else if (err?.message) {
-          errorMessage = err.message;
-        }
-        setApiError(errorMessage);
+        const appError = normalizeApiError(err);
+        setApiError(appError.message);
       }
     },
     [signUp, navigation]
@@ -202,22 +189,6 @@ export const SignUpScreen = ({ navigation }: Props) => {
               onChangeText={field.onChange}
               isPassword
               error={errors.confirmPassword?.message}
-            />
-          )}
-        />
-
-        {/* Referral Code */}
-        <Controller
-          control={control}
-          name="referralCode"
-          render={({ field }) => (
-            <AppTextInput
-              label="Referral Code (optional)"
-              placeholder="e.g WERT283-EDD"
-              autoCapitalize="characters"
-              value={field.value}
-              onChangeText={field.onChange}
-              error={errors.referralCode?.message}
             />
           )}
         />

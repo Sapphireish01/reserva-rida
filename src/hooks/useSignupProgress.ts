@@ -6,10 +6,7 @@ import { AuthStackParamList, SignupStage } from "../navigation/types";
 // Keep this in sync with AuthStackParamList whenever a step is added/removed.
 export const stageToScreen: Record<SignupStage, keyof AuthStackParamList> = {
   created: "VerificationMethod",
-  otp_verified: "LicenseIntro",
-  license_pending: "LicenseVerifying",
-  license_verified: "SSN",
-  ssn_verified: "AccountCreated",
+  otp_verified: "AccountCreated",
   active: "AccountCreated",
 };
 

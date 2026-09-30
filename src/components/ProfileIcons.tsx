@@ -817,6 +817,33 @@ export const MailIconItem: React.FC<IconProps> = ({ color = "#262731", size = 20
   </Svg>
 );
 
+export const BookmarksIconItem: React.FC<IconProps> = ({ color = "#868C98", size = 20 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M12 13.43C13.6569 13.43 15 12.0869 15 10.43C15 8.77315 13.6569 7.43 12 7.43C10.3431 7.43 9 8.77315 9 10.43C9 12.0869 10.3431 13.43 12 13.43Z"
+      stroke={color}
+      strokeWidth="1.5"
+    />
+    <Path
+      d="M3.62 8.49C5.59 1.74 18.41 1.75 20.38 8.5C21.53 12.44 19.08 15.78 16.9 17.83L13.72 20.82C12.77 21.72 11.23 21.72 10.28 20.82L7.1 17.83C4.92 15.78 2.47 12.44 3.62 8.49Z"
+      stroke={color}
+      strokeWidth="1.5"
+    />
+  </Svg>
+);
+
+export const DarkModeIconItem: React.FC<IconProps> = ({ color = "#868C98", size = 20 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M13.97 3.05001C13.17 2.92001 12.35 2.87001 11.5 2.90001C7.03 3.06001 3.39 6.64001 3.14 11.11C2.82 16.71 7.37 21.32 12.97 21.05C17.39 20.84 21.01 17.26 21.22 12.84C21.27 11.83 21.14 10.86 20.86 9.94001C20.59 9.07001 19.64 8.65001 18.78 8.97001C18.17 9.20001 17.49 9.33001 16.78 9.33001C13.29 9.33001 10.45 6.49001 10.45 3.00001C10.45 2.36001 10.55 1.74001 10.74 1.16001C11.02 0.28001 10.58 -0.66999 9.71 -0.93999L13.97 3.05001Z"
+      stroke={color}
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
 
 
 

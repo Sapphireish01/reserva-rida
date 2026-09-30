@@ -7,11 +7,6 @@ export type AuthStackParamList = {
   SignUp: undefined;
   VerificationMethod: { driverId: string };
   OTPVerification: { driverId: string; method: "sms" | "email" };
-  LicenseIntro: { driverId: string };
-  LicenseFrontCapture: { driverId: string };
-  LicenseBackCapture: { driverId: string; frontUri: string };
-  LicenseVerifying: { driverId: string; frontUri: string; backUri: string };
-  SSN: { driverId: string };
   MFAVerification: { email?: string };
   AccountCreated: undefined;
 };
@@ -46,6 +41,7 @@ export type MainStackParamList = {
   TransactionDetails: { transaction: TransactionItem };
   Settings: undefined;
   ProfileDetails: undefined;
+  Bookmarks: undefined;
   Notifications: undefined;
   EmergencyContacts: undefined;
   ReportProblem: undefined;
@@ -68,7 +64,4 @@ export type MainStackParamList = {
 export type SignupStage =
   | "created"
   | "otp_verified"
-  | "license_pending"
-  | "license_verified"
-  | "ssn_verified"
   | "active";

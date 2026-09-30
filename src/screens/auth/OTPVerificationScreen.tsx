@@ -6,6 +6,9 @@ import { authService } from "../../api/services/auth";
 import { AppButton, OTPForm } from "../../components/ui";
 import { useVerifyOtpMutation } from "../../hooks/useAuth";
 import { AuthStackParamList } from "../../navigation/types";
+import { useAuthStore } from "../../state/authStore";
+import { useToastStore } from "../../state/toastStore";
+import { normalizeApiError } from "../../utils/errorUtils";
 import { colors, spacing, typography } from "../../theme/colors";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "OTPVerification">;
@@ -19,6 +22,7 @@ export const OTPVerificationScreen = ({ route, navigation }: Props) => {
   const isCodeComplete = code.length === 6;
 
   const { mutateAsync: verifyOtp, isPending: isVerifying } = useVerifyOtpMutation();
+  const login = useAuthStore((s) => s.login);
 
   const handleVerify = React.useCallback(
     async (codeToVerify: string) => {
@@ -26,25 +30,27 @@ export const OTPVerificationScreen = ({ route, navigation }: Props) => {
       try {
         setErrorMessage(null);
         console.log("🌐 [API Call] POST /accounts/verify-otp/ with otp:", codeToVerify);
-        await verifyOtp(codeToVerify);
+        const resData = await verifyOtp(codeToVerify);
         setIsVerified(true);
-        console.log("✅ [API Success] OTP verified successfully!");
-        navigation.navigate("LicenseIntro", { driverId });
+        console.log("✅ [API Success] OTP verified successfully!", resData);
+
+        const accessToken = (resData as any)?.access ?? (resData as any)?.token;
+        const refreshToken = (resData as any)?.refresh ?? (resData as any)?.refreshToken;
+        const user = (resData as any)?.user;
+
+        if (accessToken) {
+          await login(accessToken, refreshToken, user);
+        } else {
+          useToastStore.getState().showSuccess("Verification successful! Please log in.", "Account Verified");
+          navigation.reset({ index: 0, routes: [{ name: "Login" }] });
+        }
       } catch (err: any) {
         console.error("❌ [API Error] verifyOtp failed:", err?.response?.data || err?.message);
-        const backendData = err?.response?.data;
-        let msg = "Invalid verification code. Please try again.";
-        if (typeof backendData === "string") {
-          msg = backendData;
-        } else if (backendData && typeof backendData === "object") {
-          msg = backendData.message || backendData.detail || backendData.error || backendData.otp?.[0] || msg;
-        } else if (err?.message) {
-          msg = err.message;
-        }
-        setErrorMessage(msg);
+        const appError = normalizeApiError(err);
+        setErrorMessage(appError.message);
       }
     },
-    [driverId, isVerifying, navigation, verifyOtp]
+    [isVerifying, login, navigation, verifyOtp]
   );
 
   const handleResend = React.useCallback(async () => {

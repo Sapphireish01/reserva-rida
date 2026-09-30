@@ -16,11 +16,9 @@ export const signupSchema = z
       .regex(/[0-9]/, "Must include a number")
       .regex(/[^A-Za-z0-9]/, "Must include a special character"),
     confirmPassword: z.string(),
-    referralCode: z.string().optional(),
     agreedToTerms: z.literal(true, {
       message: "You must accept the Terms and Privacy Policy",
     }),
-
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
@@ -28,11 +26,3 @@ export const signupSchema = z
   });
 
 export type SignupFormValues = z.infer<typeof signupSchema>;
-
-export const ssnSchema = z.object({
-  ssn: z
-    .string()
-    .regex(/^\d{9}$/, "Enter a valid 9-digit SSN"),
-});
-
-export type SsnFormValues = z.infer<typeof ssnSchema>;

@@ -7,6 +7,7 @@ import {
   getStoredToken,
   getStoredUserData,
   setHasSignedInBefore,
+  setOnUnauthorizedCallback,
   setStoredRefreshToken,
   setStoredToken,
   setStoredUserData,
@@ -216,6 +217,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   initializeAuth: async () => {
+    // Register global unauthorized session handler
+    setOnUnauthorizedCallback(() => {
+      clearProactiveRefreshTimer();
+      set({ isAuthenticated: false, user: null });
+    });
+
     try {
       const [token, refreshToken, storedUserRaw, hasSignedIn] = await Promise.all([
         getStoredToken(),
@@ -227,6 +234,38 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const storedUser = normalizeUserData(storedUserRaw);
 
       if (token) {
+        const expMs = getJwtExpirationMs(token);
+        const isValidJwt = expMs !== null;
+        const isExpired = !isValidJwt || Date.now() >= expMs;
+
+        if (isExpired) {
+          if (refreshToken) {
+            try {
+              console.log("🔄 [Auth Init] Access token expired or invalid. Attempting refresh on launch...");
+              const res = await authService.refreshAccessToken(refreshToken);
+              const newAccess = res.data?.access;
+              if (newAccess && getJwtExpirationMs(newAccess)) {
+                await setStoredToken(newAccess);
+                scheduleProactiveRefresh(newAccess, refreshToken);
+                await setHasSignedInBefore(true);
+                set({ isAuthenticated: true, user: storedUser, hasSignedInBefore: true, isInitializing: false });
+                get().fetchProfile().catch(() => {});
+                return;
+              }
+            } catch (refreshErr) {
+              console.warn("⚠️ [Auth Init] Token refresh failed on startup. Clearing session.", refreshErr);
+              await clearStoredTokens();
+              set({ isAuthenticated: false, user: null, hasSignedInBefore: true, isInitializing: false });
+              return;
+            }
+          }
+
+          console.warn("⚠️ [Auth Init] Token is invalid or expired with no refresh token. Clearing session.");
+          await clearStoredTokens();
+          set({ isAuthenticated: false, user: null, hasSignedInBefore: true, isInitializing: false });
+          return;
+        }
+
         if (refreshToken) {
           scheduleProactiveRefresh(token, refreshToken);
         }
@@ -289,6 +328,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ user: normalized });
   },
 }));
+
+setOnUnauthorizedCallback(() => {
+  clearProactiveRefreshTimer();
+  useAuthStore.setState({ isAuthenticated: false, user: null });
+});
 
 // Helper selector functions for convenient UI consumption
 export const getUserFullName = (user: any): string => {

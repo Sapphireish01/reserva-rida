@@ -102,7 +102,11 @@ export const ProfileDetailsScreen = ({ navigation }: Props) => {
   const currentCountry = countries.find(
     (c) => c.dialCode === userDialCode || c.dialCode === `+${userDialCode.replace("+", "")}`
   ) || countries[0];
-  const currentFlag = currentCountry?.flag || getFlagEmoji(currentCountry?.code || "US");
+  const isFlagUrl = Boolean(
+    currentCountry?.flag &&
+    (currentCountry.flag.startsWith("http://") || currentCountry.flag.startsWith("https://"))
+  );
+  const fallbackFlagEmoji = getFlagEmoji(currentCountry?.code || "US");
 
   const updateGlobalUser = (updates: Partial<{ full_name: string; email: string; phone_number: string; address_line_1: string; profile_picture: string }>) => {
     if (!user) return;
@@ -334,8 +338,20 @@ export const ProfileDetailsScreen = ({ navigation }: Props) => {
           <Text style={styles.fieldLabel}>Phone Number</Text>
           <TouchableOpacity style={styles.fieldCard} onPress={() => openEditModal("phone")} activeOpacity={0.7}>
             <View style={styles.phoneValueRow}>
-              <Text style={styles.flagEmoji}>{currentFlag}</Text>
-              <Text style={styles.fieldValue}>{phone}</Text>
+              <View style={styles.flagWrapper}>
+                {isFlagUrl ? (
+                  <Image
+                    source={{ uri: currentCountry.flag }}
+                    style={styles.flagImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Text style={styles.flagEmoji}>
+                    {currentCountry?.flag || fallbackFlagEmoji}
+                  </Text>
+                )}
+              </View>
+              <Text style={styles.fieldValue}>{phone || "Add Phone Number"}</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
           </TouchableOpacity>
@@ -597,9 +613,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  flagEmoji: {
-    fontSize: 18,
+  flagWrapper: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    overflow: "hidden",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F1F5F9",
     marginRight: 8,
+  },
+  flagImage: {
+    width: "100%",
+    height: "100%",
+  },
+  flagEmoji: {
+    fontSize: 14,
+    textAlign: "center",
   },
   sheetOption: {
     flexDirection: "row",

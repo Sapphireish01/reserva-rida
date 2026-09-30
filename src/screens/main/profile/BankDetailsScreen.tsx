@@ -14,8 +14,8 @@ import {
   AppButton,
   AppDropdown,
   AppFullScreenModal,
-  AppLoader,
   AppTextInput,
+  Skeleton,
 } from "../../../components/ui";
 import {
   useBankAccountQuery,
@@ -162,9 +162,25 @@ export const BankDetailsScreen = ({ navigation }: Props) => {
       </View>
 
       {isLoadingAccount ? (
-        <View style={styles.loadingContainer}>
-          <AppLoader size={36} />
-        </View>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={styles.infoContainer}>
+            <View style={styles.infoRow}>
+              <View style={styles.infoCol}>
+                <Skeleton width={80} height={14} borderRadius={4} style={{ marginBottom: 8 }} />
+                <Skeleton width={130} height={18} borderRadius={4} />
+              </View>
+              <View style={[styles.infoCol, { alignItems: "flex-end" }]}>
+                <Skeleton width={100} height={14} borderRadius={4} style={{ marginBottom: 8 }} />
+                <Skeleton width={110} height={18} borderRadius={4} />
+              </View>
+            </View>
+
+            <View style={[styles.infoCol, { marginTop: 24 }]}>
+              <Skeleton width={90} height={14} borderRadius={4} style={{ marginBottom: 8 }} />
+              <Skeleton width={150} height={18} borderRadius={4} />
+            </View>
+          </View>
+        </ScrollView>
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           {/* Info Details */}

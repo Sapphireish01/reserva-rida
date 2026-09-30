@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from "axios";
 import * as SecureStore from "expo-secure-store";
+import { normalizeApiError } from "../utils/errorUtils";
 
 const TOKEN_KEY = "rezarva_driver_token";
 const REFRESH_TOKEN_KEY = "rezarva_driver_refresh_token";
@@ -85,9 +86,34 @@ const DEFAULT_API_KEY = "HaSH7DZv.K8cBHg5XpSa02BkbZ4Y7BBZEwPJUczzu";
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? DEFAULT_BASE_URL;
 const RESERVA_API_KEY = process.env.EXPO_PUBLIC_RESERVA_API_KEY ?? DEFAULT_API_KEY;
 
+let onUnauthorizedCallback: (() => void) | null = null;
+
+export const setOnUnauthorizedCallback = (cb: () => void) => {
+  onUnauthorizedCallback = cb;
+};
+
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (token: string) => void;
+  reject: (err: any) => void;
+}> = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else if (token) {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 export const createApiClient = (baseURL: string): AxiosInstance => {
+  const sanitizedBaseURL = baseURL.replace(/\/+$/, "");
+
   const instance = axios.create({
-    baseURL,
+    baseURL: sanitizedBaseURL,
     timeout: 15000,
     headers: {
       "Content-Type": "application/json",
@@ -106,7 +132,7 @@ export const createApiClient = (baseURL: string): AxiosInstance => {
       config.headers["x-api-key"] = RESERVA_API_KEY;
     }
     if (__DEV__) {
-      const fullUrl = `${config.baseURL || ""}${config.url || ""}`;
+      const fullUrl = `${config.baseURL || ""}${config.url?.startsWith("/") ? config.url : `/${config.url || ""}`}`;
       console.log(`🚀 [HTTP ${config.method?.toUpperCase()}] ${fullUrl}`);
       if (config.data) {
         console.log(`📦 [Request Data]`, config.data);
@@ -118,7 +144,7 @@ export const createApiClient = (baseURL: string): AxiosInstance => {
   instance.interceptors.response.use(
     (res) => {
       if (__DEV__) {
-        const fullUrl = `${res.config.baseURL || ""}${res.config.url || ""}`;
+        const fullUrl = `${res.config.baseURL || ""}${res.config.url?.startsWith("/") ? res.config.url : `/${res.config.url || ""}`}`;
         console.log(`✅ [HTTP ${res.status}] ${res.config.method?.toUpperCase()} ${fullUrl}`);
         console.log(`📥 [Response Data]`, res.data);
       }
@@ -129,7 +155,7 @@ export const createApiClient = (baseURL: string): AxiosInstance => {
       const status = err?.response?.status;
 
       if (__DEV__) {
-        const fullUrl = `${originalRequest?.baseURL || ""}${originalRequest?.url || ""}`;
+        const fullUrl = `${originalRequest?.baseURL || ""}${originalRequest?.url?.startsWith("/") ? originalRequest.url : `/${originalRequest?.url || ""}`}`;
         console.log(`❌ [HTTP ${status || "ERROR"}] ${originalRequest?.method?.toUpperCase()} ${fullUrl}`);
         console.log(`🚨 [Response Error Object]`, err?.response?.data || err?.message);
       }
@@ -137,36 +163,90 @@ export const createApiClient = (baseURL: string): AxiosInstance => {
       // Handle 401 Unauthorized token refresh fallback
       if (status === 401 && originalRequest && !originalRequest._retry) {
         originalRequest._retry = true;
-        try {
-          const refreshToken = await getStoredRefreshToken();
-          if (refreshToken) {
-            const refreshRes = await axios.post<{ access?: string }>(
-              `${baseURL}/accounts/token/refresh/`,
-              { refresh: refreshToken },
-              {
-                headers: {
-                  "Content-Type": "application/json",
-                  "X-API-Key": RESERVA_API_KEY,
-                  "x-api-key": RESERVA_API_KEY,
-                },
-              }
-            );
 
-            const newAccessToken = refreshRes.data?.access;
-            if (newAccessToken) {
-              await setStoredToken(newAccessToken);
-              originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        const refreshToken = await getStoredRefreshToken();
+        if (!refreshToken) {
+          console.warn("⚠️ [401 Interceptor] No refresh token found. Resetting session.");
+          await clearStoredTokens();
+          if (onUnauthorizedCallback) {
+            onUnauthorizedCallback();
+          }
+          const appError = normalizeApiError(err);
+          const enhancedError = new Error(appError.message);
+          (enhancedError as any).response = err?.response;
+          (enhancedError as any).status = status;
+          (enhancedError as any).code = appError.code;
+          (enhancedError as any).appError = appError;
+          return Promise.reject(enhancedError);
+        }
+
+        if (isRefreshing) {
+          return new Promise<string>((resolve, reject) => {
+            failedQueue.push({ resolve, reject });
+          })
+            .then((token) => {
+              originalRequest.headers.Authorization = `Bearer ${token}`;
               return instance(originalRequest);
+            })
+            .catch((queueErr) => {
+              return Promise.reject(queueErr);
+            });
+        }
+
+        isRefreshing = true;
+
+        try {
+          const refreshRes = await axios.post<{ access?: string; refresh?: string }>(
+            `${sanitizedBaseURL}/accounts/token/refresh/`,
+            { refresh: refreshToken },
+            {
+              headers: {
+                "Content-Type": "application/json",
+                "X-API-Key": RESERVA_API_KEY,
+                "x-api-key": RESERVA_API_KEY,
+              },
             }
+          );
+
+          const newAccessToken = refreshRes.data?.access;
+          const newRefreshToken = refreshRes.data?.refresh;
+
+          if (newAccessToken) {
+            await setStoredToken(newAccessToken);
+            if (newRefreshToken) {
+              await setStoredRefreshToken(newRefreshToken);
+            }
+            processQueue(null, newAccessToken);
+            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+            return instance(originalRequest);
+          } else {
+            throw new Error("No access token returned from refresh endpoint.");
           }
         } catch (refreshErr) {
-          console.warn("⚠️ Token refresh failed. Clearing tokens.", refreshErr);
+          processQueue(refreshErr, null);
+          console.warn("⚠️ Token refresh failed. Clearing tokens and resetting session.", refreshErr);
           await clearStoredTokens();
+          if (onUnauthorizedCallback) {
+            onUnauthorizedCallback();
+          }
+        } finally {
+          isRefreshing = false;
+        }
+      } else if (status === 401) {
+        // Repeated 401 after retry
+        await clearStoredTokens();
+        if (onUnauthorizedCallback) {
+          onUnauthorizedCallback();
         }
       }
 
-      const message = err?.response?.data?.message ?? err?.message ?? "Something went wrong. Please try again.";
-      return Promise.reject(new Error(message));
+      const appError = normalizeApiError(err);
+      const enhancedError = new Error(appError.message);
+      (enhancedError as any).response = err?.response;
+      (enhancedError as any).status = status;
+      (enhancedError as any).code = appError.code;
+      (enhancedError as any).appError = appError;
+      return Promise.reject(enhancedError);
     }
   );
 

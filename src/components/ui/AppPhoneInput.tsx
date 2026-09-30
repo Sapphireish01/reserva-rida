@@ -9,6 +9,7 @@ import React, {
   useState,
 } from "react";
 import {
+  Image,
   Modal,
   ScrollView,
   StyleSheet,
@@ -47,6 +48,50 @@ const getFlagEmoji = (countryCode: string) => {
     .split("")
     .map((char) => 127397 + char.charCodeAt(0));
   return String.fromCodePoint(...codePoints);
+};
+
+interface FlagDisplayProps {
+  flag?: string;
+  countryCode?: string;
+  size?: number;
+}
+
+const FlagDisplay: React.FC<FlagDisplayProps> = ({ flag, countryCode = "US", size = 24 }) => {
+  const [imageError, setImageError] = useState(false);
+  const isUrl = Boolean(flag && (flag.startsWith("http://") || flag.startsWith("https://")) && !imageError);
+
+  const containerStyle = {
+    width: size,
+    height: size,
+    borderRadius: size / 2,
+    overflow: "hidden" as const,
+    justifyContent: "center" as const,
+    alignItems: "center" as const,
+    backgroundColor: "#F1F5F9",
+  };
+
+  if (isUrl) {
+    return (
+      <View style={containerStyle}>
+        <Image
+          source={{ uri: flag }}
+          style={{ width: "100%", height: "100%" }}
+          resizeMode="cover"
+          onError={() => setImageError(true)}
+        />
+      </View>
+    );
+  }
+
+  const fontSize = size >= 24 ? 15 : 13;
+
+  return (
+    <View style={containerStyle}>
+      <Text style={{ fontSize, textAlign: "center" }}>
+        {flag && !flag.startsWith("http") ? flag : getFlagEmoji(countryCode)}
+      </Text>
+    </View>
+  );
 };
 
 export const AppPhoneInput = forwardRef<AppPhoneInputRef, AppPhoneInputProps>(
@@ -162,11 +207,11 @@ export const AppPhoneInput = forwardRef<AppPhoneInputRef, AppPhoneInputProps>(
             activeOpacity={0.7}
             onPress={handleOpenDropdown}
           >
-            <View style={styles.circularFlagWrapper}>
-              <Text style={styles.flagEmoji}>
-                {selectedCountry.flag || getFlagEmoji(selectedCountry.code)}
-              </Text>
-            </View>
+            <FlagDisplay
+              flag={selectedCountry.flag}
+              countryCode={selectedCountry.code}
+              size={24}
+            />
             <Text style={styles.phoneCodeText}>
               {selectedCountry.dialCode || "+1"}
             </Text>
@@ -238,11 +283,11 @@ export const AppPhoneInput = forwardRef<AppPhoneInputRef, AppPhoneInputProps>(
                           activeOpacity={0.7}
                           onPress={() => handleSelectCountry(item)}
                         >
-                          <View style={styles.circularFlagWrapperSmall}>
-                            <Text style={styles.flagEmojiSmall}>
-                              {item.flag || getFlagEmoji(item.code)}
-                            </Text>
-                          </View>
+                          <FlagDisplay
+                            flag={item.flag}
+                            countryCode={item.code}
+                            size={22}
+                          />
                           <Text style={styles.dialCodeText}>{item.dialCode}</Text>
                           <Text style={styles.isoCodeText}>{item.code}</Text>
                         </TouchableOpacity>

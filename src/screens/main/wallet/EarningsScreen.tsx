@@ -15,6 +15,7 @@ import {
   SearchIconItem,
   UsersIconItem,
 } from "../../../components/ProfileIcons";
+import { ChooseTopUpModal } from "../../../components/wallet/ChooseTopUpModal";
 import { TransactionItem } from "../../../navigation/types";
 import { colors, palette } from "../../../theme/colors";
 
@@ -24,8 +25,8 @@ const MOCK_TRANSACTIONS: TransactionItem[] = [
   {
     id: "tx-1",
     pickup: "Frebson Fitness Gym",
-    destination: "42, Montgomery Road Yaba",
-    seatsBooked: 4,
+    destination: "CMS Bus Stop Lagos Island",
+    seatsBooked: 1,
     amount: "N12,500",
     status: "Pending",
     dateTime: "Jul 14 • 8:30AM",
@@ -36,8 +37,8 @@ const MOCK_TRANSACTIONS: TransactionItem[] = [
   {
     id: "tx-2",
     pickup: "Frebson Fitness Gym",
-    destination: "42, Montgomery Road Yaba",
-    seatsBooked: 4,
+    destination: "CMS Bus Stop Lagos Island",
+    seatsBooked: 1,
     amount: "N12,500",
     status: "Completed",
     dateTime: "Jul 14 • 8:30AM",
@@ -48,8 +49,8 @@ const MOCK_TRANSACTIONS: TransactionItem[] = [
   {
     id: "tx-3",
     pickup: "Frebson Fitness Gym",
-    destination: "42, Montgomery Road Yaba",
-    seatsBooked: 4,
+    destination: "CMS Bus Stop Lagos Island",
+    seatsBooked: 1,
     amount: "N12,500",
     status: "Failed",
     dateTime: "Jul 14 • 8:30AM",
@@ -62,6 +63,7 @@ const MOCK_TRANSACTIONS: TransactionItem[] = [
 export const EarningsScreen = ({ navigation }: Props) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterActive, setFilterActive] = useState(false);
+  const [showTopUpModal, setShowTopUpModal] = useState(false);
 
   const filteredTransactions = MOCK_TRANSACTIONS.filter((tx) => {
     const q = searchQuery.toLowerCase();
@@ -90,34 +92,34 @@ export const EarningsScreen = ({ navigation }: Props) => {
           <Ionicons name="arrow-back" size={24} color={colors.dark} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Wallet</Text>
-        <View style={{ width: 32 }} />
+        <TouchableOpacity onPress={() => setFilterActive(!filterActive)} style={styles.backBtn}>
+          <Ionicons name="options-outline" size={22} color={colors.dark} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Bank Banner Alert */}
-        <TouchableOpacity
-          style={styles.bankBanner}
-          onPress={() => navigation.navigate("BankDetails")}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.bankBannerText}>
-            Add your bank details to start receiving earnings.
-          </Text>
-          <Ionicons name="arrow-forward" size={18} color="#2563EB" />
-        </TouchableOpacity>
-
         {/* Summary Cards Row */}
         <View style={styles.summaryRow}>
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Total Earnings</Text>
+            <Text style={styles.summaryLabel}>Current Balance</Text>
             <Text style={styles.summaryAmount}>$100.00</Text>
           </View>
 
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Total Pending Payments</Text>
-            <Text style={styles.summaryAmount}>$0.00</Text>
+            <Text style={styles.summaryLabel}>Total Points</Text>
+            <Text style={styles.summaryAmount}>0.00</Text>
           </View>
         </View>
+
+        {/* Add Funds CTA */}
+        <TouchableOpacity
+          style={styles.addFundsBtn}
+          onPress={() => setShowTopUpModal(true)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="add" size={18} color="#375DFB" style={{ marginRight: 6 }} />
+          <Text style={styles.addFundsText}>Add Funds</Text>
+        </TouchableOpacity>
 
         {/* Search & Filter Row */}
         <View style={styles.searchRow}>
@@ -216,6 +218,13 @@ export const EarningsScreen = ({ navigation }: Props) => {
             );
           })}
         </View>
+
+        {/* Choose Top Up Modal Sheet */}
+        <ChooseTopUpModal
+          visible={showTopUpModal}
+          onClose={() => setShowTopUpModal(false)}
+          onSelectMethod={(method) => console.log("Selected top up method:", method)}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -249,32 +258,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 24,
   },
-  bankBanner: {
+  addFundsBtn: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
     backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BEDBFF",
     borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
     marginBottom: 16,
   },
-  bankBannerText: {
+  addFundsText: {
     fontFamily: "DM Sans Bold",
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#193CB8",
-    flex: 1,
-    marginRight: 8,
+    fontSize: 14,
+    color: "#375DFB",
+    fontWeight: "700",
   },
   summaryRow: {
     flexDirection: "row",
     gap: 12,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   summaryCard: {
     flex: 1,
-    // backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: "#E2E4E9",
     borderRadius: 10,
@@ -309,7 +316,6 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 12,
   },
-  searchIcon: {},
   searchInput: {
     flex: 1,
     height: "100%",
@@ -337,7 +343,6 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   txCard: {
-    // backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: colors.border2,
     borderRadius: 16,
@@ -380,7 +385,6 @@ const styles = StyleSheet.create({
     fontWeight: "400",
   },
   badgeTextCompleted: {
-    // color: "#7BF1A8",
     color: "#00A63E",
   },
   badgeTextPending: {
@@ -434,7 +438,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    // paddingTop: 12,
   },
   seatsRow: {
     flexDirection: "row",

@@ -1,28 +1,19 @@
-# rezarva Driver 🚗💨
+# reserva-rida 🚗💨
 
-**rezarva Driver** is the official mobile application built for drivers on the rezarva carpooling and ride-sharing network. Designed for speed, clarity, and ease of use, rezarva Driver empowers drivers to post scheduled routes, manage passenger seat requests, track real-time earnings, and complete identity verification.
+**reserva-rida** is the official mobile application built for riders on the rezarva carpooling and ride-sharing network. Designed for speed, clarity, and ease of use, reserva-rida empowers passengers to discover scheduled routes, book rides, manage booking requests, track upcoming trips, and connect with verified drivers.
 
 ---
 
 ## 🌟 Key Features
 
-### 🚘 Trip Scheduling & Queue Management
-* **Post New Routes**: Easily schedule upcoming trips by selecting pickup points, destinations, departure dates/times, available seat counts, and pricing per seat.
-* **Interactive Trip Queue**: View active trips with `Ready To Go` and `Up Next` status badges, complete route timelines, departure countdowns, and quick trip start triggers.
+### 🚘 Ride Discovery & Route Search
+* **Find Available Trips**: Search and discover upcoming trips by selecting pickup points, destinations, and dates.
+* **Driver Profiles & Ratings**: Inspect driver details, star ratings, vehicle information, and reliability metrics.
+* **One-Tap Booking**: Request seats on one-time or recurring routes with instant booking confirmations.
 
-### 📩 Passenger Request Approval
-* **Real-time Rider Requests**: Receive instant booking requests from verified passengers traveling along your route.
-* **Rider Profiles & Ratings**: Inspect passenger names, star ratings, trip schedules, and pickup/dropoff locations before accepting.
-* **One-Tap Actions**: Approve or decline ride requests with single-tap controls.
-
-### 💰 Earnings & Financial Insights
-* **Available Balance Hero**: View current available earnings and track daily, weekly, and lifetime income.
-* **Instant Cash Out**: Initiate instant transfers to your linked bank account or rely on automatic weekly ACH deposits.
-* **Driver Performance Metrics**: Monitor your acceptance rate, total completed trips, and driver rating.
-
-### 🛡️ Driver Onboarding & Identity Verification
-* **Multi-Stage Verification**: Smooth onboarding flow guiding new drivers through OTP verification, driver's license front/back photo capture, and SSN background check submission.
-* **Resume Progress**: Server-driven stage persistence allowing drivers to resume signup right where they left off.
+### 📩 Booking Management
+* **Real-time Status Tracking**: View pending, confirmed, ongoing, and completed bookings.
+* **Trip Details & In-Trip View**: Access route details, driver contact options, emergency SOS, and live ride progress.
 
 ### 🎨 Design & Accessibility
 * **Curated Color System**: Full HSL color palette featuring Neutral, Slate, Success, Warning, Information, and Error tokens.
@@ -55,8 +46,7 @@
 1. **Clone the repository** (or navigate to the workspace directory):
 
    ```bash
-   git clone git@github-personal:Sapphireish01/rezarva-driva.git
-   cd rezarva-driver
+   cd reserva-rider
    ```
 
 2. **Install dependencies**:

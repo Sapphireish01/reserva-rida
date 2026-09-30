@@ -1,12 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import { Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, Modal, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  BankDetailsIconItem,
+  BookmarksIconItem,
   ChatSupportIconItem,
   CommunitiesIconItem,
   ContactUsIconItem,
+  DarkModeIconItem,
   DeactivateIconItem,
   EmergencyContactIconItem,
   FAQIconItem,
@@ -17,7 +18,6 @@ import {
   ReferralsIconItem,
   ReportProblemIconItem,
   TwoFAIconItem,
-  VehiclesIconItem,
   WarningIconItem,
 } from "../../../components/ProfileIcons";
 import {
@@ -38,10 +38,16 @@ interface SettingItemProps {
   badge?: string;
   onPress?: () => void;
   destructive?: boolean;
+  rightElement?: React.ReactNode;
 }
 
-const SettingItem = ({ icon, label, badge, onPress, destructive }: SettingItemProps) => (
-  <TouchableOpacity style={styles.itemRow} onPress={onPress} activeOpacity={0.7}>
+const SettingItem = ({ icon, label, badge, onPress, destructive, rightElement }: SettingItemProps) => (
+  <TouchableOpacity
+    style={styles.itemRow}
+    onPress={onPress}
+    disabled={!onPress && !rightElement}
+    activeOpacity={0.7}
+  >
     <View style={styles.itemLeft}>
       <View style={styles.itemIconContainer}>{icon}</View>
       <Text style={[styles.itemLabel, destructive && styles.itemLabelDestructive]}>
@@ -53,7 +59,11 @@ const SettingItem = ({ icon, label, badge, onPress, destructive }: SettingItemPr
         </View>
       )}
     </View>
-    <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+    {rightElement ? (
+      rightElement
+    ) : (
+      <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+    )}
   </TouchableOpacity>
 );
 
@@ -62,10 +72,11 @@ export const SettingsScreen = ({ navigation }: Props) => {
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
 
-  const fullName = getUserFullName(user) || "Driver Account";
-  const email = getUserEmail(user);
+  const fullName = getUserFullName(user) || "Prosper Edward";
+  const email = getUserEmail(user) || "Prosperedward001@gmail.com";
   const avatarUri = getUserAvatar(user) || DEFAULT_AVATAR;
 
+  const [isDarkMode, setIsDarkMode] = React.useState(false);
   const [showDeactivateModal, setShowDeactivateModal] = React.useState(false);
   const [showLogoutModal, setShowLogoutModal] = React.useState(false);
   const [hasActiveBookings, setHasActiveBookings] = React.useState(false);
@@ -84,17 +95,15 @@ export const SettingsScreen = ({ navigation }: Props) => {
         {/* Main Title */}
         <Text style={styles.headerTitle}>Settings</Text>
 
-        {/* User Card */}
+        {/* User Profile Header - Centered */}
         <TouchableOpacity
-          style={styles.userCard}
+          style={styles.userCardCentered}
           onPress={() => navigation.navigate("ProfileDetails")}
           activeOpacity={0.8}
         >
-          <Image source={{ uri: avatarUri }} style={styles.userAvatar} />
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>{fullName}</Text>
-            {email ? <Text style={styles.userEmail}>{email}</Text> : null}
-          </View>
+          <Image source={{ uri: avatarUri }} style={styles.userAvatarLarge} />
+          <Text style={styles.userNameLarge}>{fullName}</Text>
+          <Text style={styles.userEmailText}>{email}</Text>
         </TouchableOpacity>
 
         {/* Account Section */}
@@ -116,19 +125,9 @@ export const SettingsScreen = ({ navigation }: Props) => {
             onPress={() => navigation.navigate("EmergencyContacts")}
           />
           <SettingItem
-            icon={<VehiclesIconItem color="#868C98" size={20} />}
-            label="Vehicles"
-            onPress={() => navigation.navigate("Vehicles")}
-          />
-          <SettingItem
-            icon={<CommunitiesIconItem color="#868C98" size={20} />}
-            label="Communities"
-            badge="Coming Soon"
-          />
-          <SettingItem
-            icon={<BankDetailsIconItem color="#868C98" size={20} />}
-            label="Bank Details"
-            onPress={() => navigation.navigate("BankDetails")}
+            icon={<BookmarksIconItem color="#868C98" size={20} />}
+            label="Bookmarks"
+            onPress={() => navigation.navigate("Bookmarks")}
           />
           <SettingItem
             icon={<PreferencesIconItem color="#868C98" size={20} />}
@@ -139,6 +138,24 @@ export const SettingsScreen = ({ navigation }: Props) => {
             icon={<ReferralsIconItem color="#868C98" size={20} />}
             label="Referrals"
             onPress={() => navigation.navigate("Referrals")}
+          />
+          <SettingItem
+            icon={<CommunitiesIconItem color="#868C98" size={20} />}
+            label="Communities"
+            badge="Coming Soon"
+          />
+          <SettingItem
+            icon={<DarkModeIconItem color="#868C98" size={20} />}
+            label="Dark Mode"
+            rightElement={
+              <Switch
+                value={isDarkMode}
+                onValueChange={setIsDarkMode}
+                trackColor={{ false: "#E2E8F0", true: "#375DFB" }}
+                thumbColor="#FFFFFF"
+                style={{ transform: [{ scaleX: 0.85 }, { scaleY: 0.85 }] }}
+              />
+            }
           />
         </View>
 
@@ -310,34 +327,32 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     marginBottom: spacing.md,
   },
-  userCard: {
-    flexDirection: "row",
+  userCardCentered: {
     alignItems: "center",
-    paddingVertical: spacing.xs,
-    paddingHorizontal: 0,
+    justifyContent: "center",
+    paddingVertical: spacing.md,
     marginBottom: spacing.lg,
   },
-  userAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  userAvatarLarge: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
     backgroundColor: "#E2E8F0",
+    marginBottom: spacing.sm,
   },
-  userInfo: {
-    marginLeft: 14,
-    flex: 1,
-  },
-  userName: {
+  userNameLarge: {
     fontFamily: "DM Sans Bold",
-    fontSize: 17,
-    fontWeight: "500",
+    fontSize: 18,
+    fontWeight: "600",
     color: "#0F172A",
+    textAlign: "center",
     marginBottom: 2,
   },
-  userEmail: {
+  userEmailText: {
     fontFamily: "DM Sans",
-    fontSize: 12,
-    color: colors.grey,
+    fontSize: 13,
+    color: "#868C98",
+    textAlign: "center",
   },
   sectionHeader: {
     fontFamily: "DM Sans Bold",

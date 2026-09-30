@@ -347,5 +347,23 @@ export const tripsService = {
   publishTrip: async (tripId: number | string) => {
     return apiClient.put("/drivers/trips/publish/", null, { params: { trip_id: tripId } });
   },
+
+  searchRiderTrips: async (payload: SearchTripsPayload) => {
+    const formData = new FormData();
+    formData.append("origin", payload.origin);
+    formData.append("destination", payload.destination);
+    formData.append("departure_date", payload.departure_date);
+
+    return apiClient.post<any>("/riders/search-trips/", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  },
 };
+
+export interface SearchTripsPayload {
+  origin: string;
+  destination: string;
+  departure_date: string;
+}
+
 

@@ -1,11 +1,12 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React from "react";
-import { BookingsIcon, HomeIcon, ProfileIcon, TripsIcon, WalletIcon } from "../components/NavIcons";
+import { BookingsIcon, DiscoverIcon, HomeIcon, ProfileIcon, TripsIcon, WalletIcon } from "../components/NavIcons";
 import { PassengerRequestsScreen } from "../screens/main/bookings";
 import { HomeScreen, NotificationsScreen } from "../screens/main/home";
 import {
   BankDetailsScreen,
+  BookmarksScreen,
   ChatWithSupportScreen,
   ContactUsScreen,
   EmergencyContactsScreen,
@@ -53,7 +54,7 @@ const MainTabNavigator = () => (
         if (route.name === "HomeTab") {
           return <HomeIcon focused={focused} size={24} />;
         } else if (route.name === "TripsTab") {
-          return <TripsIcon focused={focused} size={24} />;
+          return <DiscoverIcon focused={focused} size={24} />;
         } else if (route.name === "BookingsTab") {
           return <BookingsIcon focused={focused} size={24} />;
         } else if (route.name === "WalletTab") {
@@ -66,7 +67,7 @@ const MainTabNavigator = () => (
     })}
   >
     <Tab.Screen name="HomeTab" component={HomeScreen} options={{ tabBarLabel: "Home" }} />
-    <Tab.Screen name="TripsTab" component={TripsScreen} options={{ tabBarLabel: "Trips" }} />
+    <Tab.Screen name="TripsTab" component={TripsScreen} options={{ tabBarLabel: "Discover" }} />
     <Tab.Screen name="BookingsTab" component={PassengerRequestsScreen} options={{ tabBarLabel: "Bookings" }} />
     <Tab.Screen name="WalletTab" component={EarningsScreen} options={{ tabBarLabel: "Wallet" }} />
     <Tab.Screen name="ProfileTab" component={SettingsScreen} options={{ tabBarLabel: "Profile" }} />
@@ -95,6 +96,11 @@ export const MainNavigator = () => (
     <Stack.Screen
       name="ProfileDetails"
       component={ProfileDetailsScreen}
+      options={{ headerShown: false }}
+    />
+    <Stack.Screen
+      name="Bookmarks"
+      component={BookmarksScreen}
       options={{ headerShown: false }}
     />
     <Stack.Screen

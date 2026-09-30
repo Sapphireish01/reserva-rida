@@ -7,7 +7,6 @@ export interface SignupPayload {
   countryCode: string;
   gender: string;
   password: string;
-  referralCode?: string;
   userType?: string;
 }
 
@@ -160,10 +159,11 @@ export const authService = {
     formData.append("phone_number", payload.phoneNumber);
     formData.append("password", payload.password);
     formData.append("confirm_password", payload.password);
-    formData.append("gender", payload.gender);
-    formData.append("user_type", "DRIVER");
-    if (payload.referralCode) {
-      formData.append("referral_code", payload.referralCode);
+    if (payload.gender) {
+      formData.append("gender", payload.gender);
+    }
+    if (payload.userType) {
+      formData.append("user_type", payload.userType);
     }
 
     return apiClient.post<{ driverId?: string; id?: string }>("/accounts/register/", formData, {

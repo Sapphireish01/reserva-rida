@@ -1,456 +1,320 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
+  Image,
+  RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BookingFlowModals } from "../../../components/booking/BookingFlowModals";
+import { RidesFilterModal } from "../../../components/booking/RidesFilterModal";
+import { EmptyState, ErrorState, Skeleton } from "../../../components/ui";
+import { normalizeApiError } from "../../../utils/errorUtils";
 import {
-  useCancelTripMutation,
-  useDriverTripsQuery,
-} from "../../../hooks/useDriverTrips";
-import { colors, spacing } from "../../../theme/colors";
-import { CancelTripModal } from "./components/CancelTripModal";
-import { SetAvailabilityModal } from "./components/SetAvailabilityModal";
-import { TripActionSheetModal } from "./components/TripActionSheetModal";
-import { TripDetailsModal } from "./components/TripDetailsModal";
+  formatDriverName,
+  formatVehicleSummary,
+  useDiscoverTripsQuery,
+} from "../../../hooks/useRiderBookings";
+import { CheckoutScreen } from "../home/CheckoutScreen";
+import { RequestSuccessScreen } from "../home/RequestSuccessScreen";
 
-type TabType = "Upcoming" | "Recurring" | "Completed" | "Cancelled";
+export interface DiscoverRideItem {
+  id: string;
+  driverName: string;
+  isVerified: boolean;
+  rating: number;
+  vehicle: string;
+  avatar: string;
+  startingPoint: string;
+  destination: string;
+  departureDate: string;
+  estimatedArrival: string;
+  availableSeats: number;
+  price: string;
+  tripType: string;
+  raw?: any;
+}
 
 export const TripsScreen = ({ navigation }: any) => {
-  const [activeTab, setActiveTab] = useState<TabType>("Upcoming");
+  const [showFilter, setShowFilter] = useState(false);
+  const [selectedRide, setSelectedRide] = useState<DiscoverRideItem | null>(null);
+  const [bookingDetails, setBookingDetails] = useState<any | null>(null);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
-  // Live API query for trips
-  const statusParam =
-    activeTab === "Upcoming"
-      ? "scheduled"
-      : activeTab === "Completed"
-      ? "completed"
-      : activeTab === "Cancelled"
-      ? "cancelled"
-      : undefined;
+  // Live Query Hook
+  const { data: discoverData, isLoading, isRefetching, isError, error, refetch } = useDiscoverTripsQuery();
 
-  const { data: serverTrips, isLoading: isLoadingTrips, refetch } = useDriverTripsQuery(
-    statusParam ? { status: statusParam } : undefined
-  );
-  const cancelTripMutation = useCancelTripMutation();
+  const rides: DiscoverRideItem[] = useMemo(() => {
+    if (!discoverData || discoverData.length === 0) {
+      return [];
+    }
 
-  // Modals state
-  const [showAvailabilityModal, setShowAvailabilityModal] = useState(false);
-  const [selectedTrip, setSelectedTrip] = useState<any | null>(null);
-  const [showActionSheet, setShowActionSheet] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [showCancelModal, setShowCancelModal] = useState(false);
+    return discoverData.map((item) => {
+      const formattedTime = item.departure_time
+        ? item.departure_time.length > 5
+          ? item.departure_time.slice(0, 5)
+          : item.departure_time
+        : "08:00 AM";
 
-  // Normalize server trips into UI display objects
-  const trips = React.useMemo(() => {
-    const rawList = Array.isArray(serverTrips)
-      ? serverTrips
-      : (serverTrips as any)?.results && Array.isArray((serverTrips as any).results)
-      ? (serverTrips as any).results
-      : [];
-
-    if (rawList.length === 0) return [];
-    return rawList.map((t: any) => {
-      const isRec = Boolean(
-        t.recurrence_frequency || (t.recurrence_days && t.recurrence_days.length > 0)
-      );
-
-      let formattedFreq = "";
-      if (t.recurrence_days && t.recurrence_days.length > 0) {
-        const shortDays = t.recurrence_days
-          .map((d: string) => (typeof d === "string" ? d.substring(0, 3) : String(d)))
-          .join(", ");
-        formattedFreq = `${shortDays} • ${t.recurrence_frequency || "Weekly"}`;
-      } else if (t.recurrence_frequency) {
-        formattedFreq = t.recurrence_frequency;
-      }
+      const tripFreq = item.trip_frequency
+        ? item.trip_frequency.charAt(0).toUpperCase() + item.trip_frequency.slice(1)
+        : "Custom";
 
       return {
-        id: String(t.id),
-        raw: t,
-        origin: t.pickup_location || t.origin || "Pickup Location",
-        destination: t.destination || "Destination",
-        seatsRemaining: t.seats_available ?? t.available_seats ?? t.seatsRemaining ?? 2,
-        totalSeats: t.available_seats ?? t.totalSeats ?? 4,
-        departureTime: t.departure_time_display || t.departure_time || t.departureTime || "06:00 AM",
-        date: t.trip_date || t.date || "Scheduled Date",
-        status: t.status || "scheduled",
-        isRecurring: isRec,
-        frequency: formattedFreq || "Daily",
-        pricePerSeat: String(t.price_per_seat || "0.00"),
-        isPaused: false,
+        id: String(item.id),
+        driverName: formatDriverName(item.driver),
+        isVerified: true,
+        rating: (typeof item.driver === "object" && item.driver?.rating) ? item.driver.rating : 5,
+        vehicle: formatVehicleSummary(item.vehicle),
+        avatar:
+          (typeof item.driver === "object" && item.driver?.profile_picture) ||
+          "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+        startingPoint: item.pickup_location,
+        destination: item.destination,
+        departureDate: item.trip_date || "Upcoming",
+        estimatedArrival: formattedTime,
+        availableSeats: 2,
+        price: "₦0.00",
+        tripType: item.is_recurring ? `${tripFreq} Trip` : "One-Time Trip",
+        raw: item,
       };
     });
-  }, [serverTrips]);
+  }, [discoverData]);
 
-  const handleAddTrip = (newTripData: any) => {
+  const onRefresh = () => {
     refetch();
   };
 
-  const handleStartTrip = (tripId: string) => {
-    // start trip action logic
+  const handleConfirmBookingDetails = (details: any) => {
+    setBookingDetails(details);
+    setSelectedRide(null);
+    setShowCheckout(true);
   };
 
-  const handleTogglePause = (tripId: string) => {
-    // pause trip action logic
+  const handleProceedToPayment = () => {
+    setShowCheckout(false);
+    setShowSuccess(true);
   };
-
-  const handleConfirmCancel = async (tripId: string) => {
-    try {
-      await cancelTripMutation.mutateAsync(tripId);
-      setShowCancelModal(false);
-      setShowActionSheet(false);
-    } catch (err) {
-      console.error("Error cancelling trip:", err);
-    }
-  };
-
-  // Filter trips per tab
-  const filteredTrips = trips.filter((t: any) => {
-    if (activeTab === "Upcoming") return (t.status === "scheduled" || t.status === "ongoing") && !t.isRecurring;
-    if (activeTab === "Recurring") return t.isRecurring && (t.status === "scheduled" || t.status === "ongoing");
-    if (activeTab === "Completed") return t.status === "completed";
-    if (activeTab === "Cancelled") return t.status === "cancelled";
-    return false;
-  });
-
-  const emptyStateConfig: Record<TabType, { title: string; subtitle: string }> = {
-    Upcoming: {
-      title: "Ready for Your Next Trip?",
-      subtitle: "Schedule a trip and let passengers reserve seats before you hit the road.",
-    },
-    Recurring: {
-      title: "No Recurring Trips",
-      subtitle: "Schedule a trip to start receiving bookings from passengers travelling your route.",
-    },
-    Completed: {
-      title: "No Trips Yet",
-      subtitle: "Your completed trips, passenger ratings, and earnings will appear here.",
-    },
-    Cancelled: {
-      title: "No Cancelled Trips",
-      subtitle: "Cancelled trips will appear here.",
-    },
-  };
-
-  const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <Text style={styles.emptyTitle}>{emptyStateConfig[activeTab].title}</Text>
-      <Text style={styles.emptySubtitle}>{emptyStateConfig[activeTab].subtitle}</Text>
-      <TouchableOpacity
-        style={styles.setAvailabilityBtn}
-        onPress={() => setShowAvailabilityModal(true)}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.setAvailabilityBtnText}>Set Availability</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  const renderTripCard = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={styles.tripCard}
-      onPress={() => {
-        setSelectedTrip(item);
-        setShowActionSheet(true);
-      }}
-      activeOpacity={0.85}
-    >
-      {/* Route Row: Origin -> Destination */}
-      <View style={styles.routeHeaderRow}>
-        <Text style={styles.routeName} numberOfLines={1}>
-          {item.origin}
-        </Text>
-        <Ionicons name="arrow-forward" size={14} color="#64748B" style={styles.arrowIcon} />
-        <Text style={styles.routeName} numberOfLines={1}>
-          {item.destination}
-        </Text>
-      </View>
-
-      {/* Seats Remaining Row */}
-      <View style={styles.seatsRow}>
-        <Ionicons name="people-outline" size={16} color="#64748B" style={{ marginRight: 6 }} />
-        <Text style={styles.seatsText}>Seats Remaining: {item.seatsRemaining}</Text>
-      </View>
-
-      {/* Date, Time & Pill Badge Row */}
-      <View style={styles.cardFooter}>
-        <View style={styles.dateTimeGroup}>
-          <View style={styles.metaItem}>
-            <Ionicons name="calendar-outline" size={16} color="#64748B" style={{ marginRight: 5 }} />
-            <Text style={styles.metaText}>{item.date}</Text>
-          </View>
-
-          <View style={styles.metaItem}>
-            <Ionicons name="time-outline" size={16} color="#64748B" style={{ marginRight: 5 }} />
-            <Text style={styles.metaText}>{item.departureTime}</Text>
-          </View>
-        </View>
-
-        {/* Pill Badge */}
-        {item.isRecurring ? (
-          <View style={styles.pillRecurring}>
-            <Text style={styles.pillRecurringText}>Recurring Trip</Text>
-          </View>
-        ) : (
-          <View style={styles.pillOneTime}>
-            <Text style={styles.pillOneTimeText}>One Time Trip</Text>
-          </View>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
       {/* Top Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="arrow-back" size={22} color="#0F172A" />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
+          <Ionicons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Trips</Text>
-        <View style={{ width: 22 }} />
+        <TouchableOpacity onPress={() => setShowFilter(true)} style={styles.iconBtn}>
+          <Ionicons name="options-outline" size={22} color="#0F172A" />
+        </TouchableOpacity>
       </View>
 
-      {/* Tabs Row */}
-      <View style={styles.tabsRow}>
-        {(["Upcoming", "Recurring", "Completed", "Cancelled"] as TabType[]).map((tab) => {
-          const isActive = activeTab === tab;
-          return (
-            <TouchableOpacity
-              key={tab}
-              style={[styles.tabItem, isActive && styles.tabItemActive]}
-              onPress={() => setActiveTab(tab)}
-            >
-              <Text style={[styles.tabText, isActive && styles.tabTextActive]}>{tab}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {/* Content */}
-      {filteredTrips.length === 0 ? (
-        renderEmptyState()
+      {/* Discover Available Rides List / Skeletons / ErrorState */}
+      {isLoading && rides.length === 0 ? (
+        <View style={styles.listContent}>
+          {[1, 2, 3].map((k) => (
+            <View key={k} style={[styles.rideCard, { padding: 16, gap: 12 }]}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <Skeleton width={44} height={44} borderRadius={22} />
+                <View style={{ flex: 1, gap: 6 }}>
+                  <Skeleton width="60%" height={16} />
+                  <Skeleton width="40%" height={12} />
+                </View>
+                <Skeleton width={80} height={24} borderRadius={12} />
+              </View>
+              <Skeleton width="100%" height={50} borderRadius={8} />
+              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                <Skeleton width="45%" height={32} borderRadius={6} />
+                <Skeleton width="45%" height={32} borderRadius={6} />
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : isError && rides.length === 0 ? (
+        <ErrorState
+          title="Failed to Load Trips"
+          subtitle={normalizeApiError(error).message}
+          onButtonPress={() => refetch()}
+          buttonTitle="Try Again"
+        />
       ) : (
         <FlatList
-          data={filteredTrips}
+          data={rides}
           keyExtractor={(item) => item.id}
-          renderItem={renderTripCard}
-          contentContainerStyle={styles.listContent}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} colors={["#375DFB"]} />}
+          contentContainerStyle={[styles.listContent, rides.length === 0 && { flex: 1, justifyContent: "center" }]}
           showsVerticalScrollIndicator={false}
-        />
-      )}
+          ListEmptyComponent={
+            <EmptyState
+              title="No Available Trips Found"
+              subtitle="Check back shortly or try searching for a different route."
+              buttonTitle="Refresh"
+              onButtonPress={() => refetch()}
+              icon={<Ionicons name="car-outline" size={48} color="#94A3B8" />}
+            />
+          }
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={styles.rideCard}
+            onPress={() => setSelectedRide(item)}
+            activeOpacity={0.85}
+          >
+            {/* Driver Header */}
+            <View style={styles.driverRow}>
+              <Image source={{ uri: item.avatar }} style={styles.avatar} />
+              <View style={styles.driverMeta}>
+                <View style={styles.nameRow}>
+                  <Text style={styles.driverName}>{item.driverName}</Text>
+                  {item.isVerified && <Ionicons name="checkmark-circle" size={14} color="#375DFB" style={{ marginLeft: 4 }} />}
+                  <View style={styles.ratingBadge}>
+                    <Text style={styles.ratingText}>{item.rating}</Text>
+                    <Ionicons name="star" size={12} color="#375DFB" style={{ marginLeft: 2 }} />
+                  </View>
+                </View>
+                <Text style={styles.vehicleText} numberOfLines={1}>{item.vehicle}</Text>
+              </View>
 
-      {/* 1. Set Availability Modal */}
-      <SetAvailabilityModal
-        visible={showAvailabilityModal}
-        onClose={() => setShowAvailabilityModal(false)}
-        onSubmit={handleAddTrip}
+              <View style={styles.recurringChip}>
+                <Text style={styles.recurringChipText}>{item.tripType}</Text>
+              </View>
+            </View>
+
+            {/* Route Points */}
+            <View style={styles.routeBox}>
+              <View style={styles.pointRow}>
+                <View style={styles.dotOutline} />
+                <Text style={styles.pointLabel}>Starting Point</Text>
+                <Text style={styles.pointValue}>{item.startingPoint}</Text>
+              </View>
+              <View style={styles.connectorLine} />
+              <View style={styles.pointRow}>
+                <View style={styles.dotSolid} />
+                <Text style={styles.pointLabel}>Destination</Text>
+                <Text style={styles.pointValue}>{item.destination}</Text>
+              </View>
+            </View>
+
+            {/* Departure & Arrival Info */}
+            <View style={styles.timeGrid}>
+              <View style={styles.timeCard}>
+                <Text style={styles.timeLabel}>Departure Date</Text>
+                <Text style={styles.timeValue}>{item.departureDate}</Text>
+              </View>
+              <View style={styles.timeCard}>
+                <Text style={styles.timeLabel}>Estimated Arrival</Text>
+                <Text style={styles.timeValue}>{item.estimatedArrival}</Text>
+              </View>
+            </View>
+
+            {/* Footer Seats & Price */}
+            <View style={styles.cardFooter}>
+              <View style={styles.seatsRow}>
+                <Ionicons name="people-outline" size={16} color="#64748B" style={{ marginRight: 6 }} />
+                <Text style={styles.seatsText}>Available Seats : {item.availableSeats}</Text>
+              </View>
+              <View style={styles.priceRow}>
+                <Text style={styles.priceValue}>{item.price}</Text>
+                <Text style={styles.perSeatText}> per seat</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
+      />
+    )}
+
+      {/* Filter Modal */}
+      <RidesFilterModal
+        visible={showFilter}
+        onClose={() => setShowFilter(false)}
+        onApply={() => {}}
       />
 
-      {/* 2. Trip Action Options Sheet */}
-      <TripActionSheetModal
-        visible={showActionSheet}
-        onClose={() => setShowActionSheet(false)}
-        trip={selectedTrip}
-        onViewDetails={() => setShowDetailsModal(true)}
-        onStartTrip={() => selectedTrip && handleStartTrip(selectedTrip.id)}
-        onEditTrip={() => setShowAvailabilityModal(true)}
-        onTogglePause={() => selectedTrip && handleTogglePause(selectedTrip.id)}
-        onCancelTrip={() => setShowCancelModal(true)}
+      {/* Ride Details & Booking Modals */}
+      <BookingFlowModals
+        ride={selectedRide}
+        onCloseDriverDetails={() => setSelectedRide(null)}
+        onConfirmBookingDetails={handleConfirmBookingDetails}
       />
 
-      {/* 3. Full Trip Details Modal */}
-      <TripDetailsModal
-        visible={showDetailsModal}
-        onClose={() => setShowDetailsModal(false)}
-        trip={selectedTrip}
-        onStartTrip={() => selectedTrip && handleStartTrip(selectedTrip.id)}
-        onTogglePause={() => selectedTrip && handleTogglePause(selectedTrip.id)}
+      {/* Checkout Screen */}
+      <CheckoutScreen
+        visible={showCheckout}
+        onClose={() => setShowCheckout(false)}
+        bookingData={bookingDetails}
+        onProceedToPayment={handleProceedToPayment}
       />
 
-      {/* 4. Cancel Trip Confirmation Sheet */}
-      <CancelTripModal
-        visible={showCancelModal}
-        onClose={() => setShowCancelModal(false)}
-        onConfirmCancel={() => selectedTrip && handleConfirmCancel(selectedTrip.id)}
+      {/* Request Success Screen */}
+      <RequestSuccessScreen
+        visible={showSuccess}
+        onHome={() => setShowSuccess(false)}
+        onViewBooking={() => {
+          setShowSuccess(false);
+          navigation.navigate("BookingsTab");
+        }}
       />
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
+  safeArea: { flex: 1, backgroundColor: "#FFFFFF" },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: 16,
     paddingVertical: 14,
-    // borderBottomWidth: 1,
-    // borderBottomColor: "#F1F5F9",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
   },
-  headerTitle: {
-    fontFamily: "DM Sans Bold",
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#0F172A",
-  },
-  tabsRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
+  iconBtn: { padding: 4 },
+  headerTitle: { fontFamily: "DM Sans Bold", fontSize: 18, fontWeight: "700", color: "#0F172A" },
+
+  listContent: { padding: 16 },
+
+  rideCard: {
     backgroundColor: "#FFFFFF",
-  },
-  tabItem: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
-  },
-  tabItemActive: {
-    borderBottomColor: "#0F172A",
-  },
-  tabText: {
-    fontFamily: "DM Sans",
-    fontSize: 12,
-    color: "#CDD0D5",
-    fontWeight: "500",
-  },
-  tabTextActive: {
-    fontFamily: "DM Sans Bold",
-    color: colors.dark,
-    fontWeight: "500",
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: spacing.lg,
-  },
-  emptyTitle: {
-    fontFamily: "DM Sans Bold",
-    fontSize: 14,
-    lineHeight: 17,
-    fontWeight: "500",
-    color: colors.dark,
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  emptySubtitle: {
-    fontFamily: "DM Sans",
-    fontSize: 12,
-    color: colors.grey,
-    textAlign: "center",
-    lineHeight: 18,
-    marginBottom: 12,
-    maxWidth: 328,
-  },
-  setAvailabilityBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-  setAvailabilityBtnText: {
-    fontFamily: "DM Sans Bold",
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#FFFFFF",
-  },
-  listContent: {
-    padding: spacing.md,
-  },
-  tripCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 14,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: "#E2E8F0",
-  },
-  routeHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  routeName: {
-    fontFamily: "DM Sans Bold",
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#0F172A",
-    flexShrink: 1,
-  },
-  arrowIcon: {
-    marginHorizontal: 8,
-  },
-  seatsRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    padding: 14,
     marginBottom: 14,
   },
-  seatsText: {
-    fontFamily: "DM Sans",
-    fontSize: 13,
-    color: "#868C98",
-  },
-  cardFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  dateTimeGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  metaItem: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  metaText: {
-    fontFamily: "DM Sans",
-    fontSize: 13,
-    color: "#0F172A",
-    fontWeight: "500",
-  },
-  pillRecurring: {
-    backgroundColor: "#EFF6FF",
-    borderWidth: 1,
-    borderColor: "#BEDBFF",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  pillRecurringText: {
-    fontFamily: "DM Sans",
-    fontSize: 12,
-    color: "#375DFB",
-    fontWeight: "500",
-  },
-  pillOneTime: {
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  pillOneTimeText: {
-    fontFamily: "DM Sans",
-    fontSize: 12,
-    color: "#94A3B8",
-    fontWeight: "500",
-  },
+  driverRow: { flexDirection: "row", alignItems: "center" },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#E2E8F0" },
+  driverMeta: { flex: 1, marginLeft: 10, marginRight: 6 },
+  nameRow: { flexDirection: "row", alignItems: "center" },
+  driverName: { fontFamily: "DM Sans Bold", fontSize: 14, fontWeight: "700", color: "#0F172A" },
+  ratingBadge: { flexDirection: "row", alignItems: "center", marginLeft: 6 },
+  ratingText: { fontFamily: "DM Sans Bold", fontSize: 12, fontWeight: "700", color: "#375DFB" },
+  vehicleText: { fontFamily: "DM Sans", fontSize: 11, color: "#64748B", marginTop: 2 },
+
+  recurringChip: { borderWidth: 1, borderColor: "#BEDBFF", borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3, backgroundColor: "#EFF6FF" },
+  recurringChipText: { fontFamily: "DM Sans", fontSize: 10, color: "#375DFB" },
+
+  routeBox: { marginVertical: 12 },
+  pointRow: { flexDirection: "row", alignItems: "center" },
+  dotOutline: { width: 8, height: 8, borderRadius: 4, borderWidth: 1.5, borderColor: "#64748B", marginRight: 8 },
+  dotSolid: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#64748B", marginRight: 8 },
+  pointLabel: { fontFamily: "DM Sans", fontSize: 11, color: "#94A3B8", marginRight: 6 },
+  pointValue: { fontFamily: "DM Sans Bold", fontSize: 12, fontWeight: "600", color: "#0F172A", marginLeft: "auto" },
+  connectorLine: { width: 1, height: 12, backgroundColor: "#CBD5E1", marginLeft: 3.5, marginVertical: 2 },
+
+  timeGrid: { flexDirection: "row", gap: 10, marginBottom: 14 },
+  timeCard: { flex: 1, backgroundColor: "#F8FAFC", borderRadius: 10, padding: 10 },
+  timeLabel: { fontFamily: "DM Sans", fontSize: 10, color: "#94A3B8" },
+  timeValue: { fontFamily: "DM Sans Bold", fontSize: 12, fontWeight: "700", color: "#0F172A", marginTop: 2 },
+
+  cardFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 10, borderTopWidth: 1, borderTopColor: "#F1F5F9" },
+  seatsRow: { flexDirection: "row", alignItems: "center" },
+  seatsText: { fontFamily: "DM Sans", fontSize: 12, color: "#64748B" },
+  priceRow: { flexDirection: "row", alignItems: "baseline" },
+  priceValue: { fontFamily: "DM Sans Bold", fontSize: 16, fontWeight: "700", color: "#0F172A" },
+  perSeatText: { fontFamily: "DM Sans", fontSize: 11, color: "#64748B" },
 });
