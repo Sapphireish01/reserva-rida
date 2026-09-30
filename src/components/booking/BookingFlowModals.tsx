@@ -108,9 +108,25 @@ export const BookingFlowModals: React.FC<BookingFlowModalsProps> = ({
     data.pickup_location || ride?.startingPoint || "Pickup Location";
   const destination = data.destination || ride?.destination || "Destination";
 
+  const maxAvailableSeats =
+    typeof data.available_seats === "number"
+      ? data.available_seats
+      : typeof ride?.availableSeats === "number"
+      ? ride.availableSeats
+      : 4;
+
+  const offeredDays: string[] =
+    Array.isArray(data.recurrence_days) && data.recurrence_days.length > 0
+      ? data.recurrence_days
+      : ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+
   const [step, setStep] = useState<"driverDetails" | "bookingForm">("driverDetails");
   const [seats, setSeats] = useState(1);
-  const [days, setDays] = useState<string[]>(["Monday", "Wednesday", "Friday"]);
+  const [days, setDays] = useState<string[]>(
+    Array.isArray(data.recurrence_days) && data.recurrence_days.length > 0
+      ? data.recurrence_days
+      : ["Monday", "Wednesday", "Friday"]
+  );
   const [pickupPoint, setPickupPoint] = useState(pickupLocation);
   const [dropoffPoint, setDropoffPoint] = useState(destination);
   const [bookingError, setBookingError] = useState<string | null>(null);
@@ -118,7 +134,10 @@ export const BookingFlowModals: React.FC<BookingFlowModalsProps> = ({
   useEffect(() => {
     if (pickupLocation) setPickupPoint(pickupLocation);
     if (destination) setDropoffPoint(destination);
-  }, [pickupLocation, destination]);
+    if (Array.isArray(data.recurrence_days) && data.recurrence_days.length > 0) {
+      setDays(data.recurrence_days);
+    }
+  }, [pickupLocation, destination, data.recurrence_days]);
 
   if (!ride) return null;
 
@@ -180,6 +199,11 @@ export const BookingFlowModals: React.FC<BookingFlowModalsProps> = ({
       setBookingError(msg);
     }
 
+    const rawPriceStr = data.price_per_seat || ride?.price || "0.00";
+    const unitPrice = parseFloat(String(rawPriceStr).replace(/[^0-9.-]+/g, "")) || 0;
+    const computedTotal = unitPrice * seats;
+    const finalPrice = computedTotal > 0 ? `₦${computedTotal.toFixed(2)}` : (ride?.price || "₦0.00");
+
     onConfirmBookingDetails({
       ride,
       seats,
@@ -196,7 +220,9 @@ export const BookingFlowModals: React.FC<BookingFlowModalsProps> = ({
       frequency: tripFrequencyDisplay,
       isRecurring,
       tripType: isRecurring ? "Recurring Trip" : "One-Time Trip",
-      price: ride.price || "₦0.00",
+      price: finalPrice,
+      pricePerSeat: unitPrice,
+      availableSeats: maxAvailableSeats,
       bookingId: bookingResult?.id,
       bookingStatus: bookingResult?.status || "pending",
       priceAtBooking: bookingResult?.price_at_booking,
@@ -336,18 +362,22 @@ export const BookingFlowModals: React.FC<BookingFlowModalsProps> = ({
               <Ionicons name="remove" size={18} color="#0F172A" />
             </TouchableOpacity>
             <Text style={styles.seatsCountText}>{seats}</Text>
-            <TouchableOpacity style={styles.counterBtnBlue} onPress={() => setSeats(seats + 1)}>
+            <TouchableOpacity
+              style={[styles.counterBtnBlue, seats >= maxAvailableSeats && { opacity: 0.5 }]}
+              onPress={() => seats < maxAvailableSeats && setSeats(seats + 1)}
+              disabled={seats >= maxAvailableSeats}
+            >
               <Ionicons name="add" size={18} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
-          <Text style={styles.seatsLeftText}>Available seats for booking</Text>
+          <Text style={styles.seatsLeftText}>{maxAvailableSeats} available seats for booking</Text>
 
           {/* Trip Frequency */}
           {isRecurring ? (
             <>
               <Text style={[styles.formLabel, { marginTop: 16 }]}>Trip Frequency ({tripFrequencyRaw})</Text>
               <View style={styles.frequencyRow}>
-                {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].map((day) => {
+                {offeredDays.map((day) => {
                   const isSelected = days.includes(day);
                   return (
                     <TouchableOpacity

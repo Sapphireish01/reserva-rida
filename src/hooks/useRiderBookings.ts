@@ -29,12 +29,21 @@ export const formatRecurrenceDays = (days?: number[] | string[], frequency?: str
 
   if (typeof days[0] === "number") {
     const names = (days as number[]).map((d) => DAY_NAMES[d] || `Day ${d}`);
-    return `${names.join(", ")} • ${frequency || "Custom"}`;
+    const freqSuffix = frequency ? ` • ${frequency.charAt(0).toUpperCase() + frequency.slice(1)}` : "";
+    return `${names.join(", ")}${freqSuffix}`;
   }
 
   // Handle array of strings like ["Monday", "Tuesday", ...]
   const shortNames = (days as string[]).map((d) => d.slice(0, 3));
-  return `${shortNames.join(", ")} • ${frequency || "Custom"}`;
+  const freqSuffix = frequency ? ` • ${frequency.charAt(0).toUpperCase() + frequency.slice(1)}` : "";
+  return `${shortNames.join(", ")}${freqSuffix}`;
+};
+
+export const formatPrice = (price?: string | number | null, currency = "₦"): string => {
+  if (price === undefined || price === null || price === "") return `${currency}0.00`;
+  const num = typeof price === "number" ? price : parseFloat(String(price).replace(/[^0-9.-]+/g, ""));
+  if (isNaN(num)) return String(price);
+  return `${currency}${num.toFixed(2)}`;
 };
 
 export const formatVehicleSummary = (vehicle?: VehicleSummary | number | string): string => {

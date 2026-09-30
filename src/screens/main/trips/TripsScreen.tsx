@@ -16,6 +16,8 @@ import { EmptyState, ErrorState, Skeleton } from "../../../components/ui";
 import { normalizeApiError } from "../../../utils/errorUtils";
 import {
   formatDriverName,
+  formatPrice,
+  formatRecurrenceDays,
   formatVehicleSummary,
   useDiscoverTripsQuery,
 } from "../../../hooks/useRiderBookings";
@@ -65,6 +67,12 @@ export const TripsScreen = ({ navigation }: any) => {
         ? item.trip_frequency.charAt(0).toUpperCase() + item.trip_frequency.slice(1)
         : "Custom";
 
+      const tripTypeLabel = item.is_recurring
+        ? (item.recurrence_days && item.recurrence_days.length > 0
+            ? formatRecurrenceDays(item.recurrence_days, item.trip_frequency)
+            : `${tripFreq} Trip`)
+        : "One-Time Trip";
+
       return {
         id: String(item.id),
         driverName: formatDriverName(item.driver),
@@ -78,9 +86,9 @@ export const TripsScreen = ({ navigation }: any) => {
         destination: item.destination,
         departureDate: item.trip_date || "Upcoming",
         estimatedArrival: formattedTime,
-        availableSeats: 2,
-        price: "₦0.00",
-        tripType: item.is_recurring ? `${tripFreq} Trip` : "One-Time Trip",
+        availableSeats: typeof item.available_seats === "number" ? item.available_seats : 2,
+        price: formatPrice(item.price_per_seat),
+        tripType: tripTypeLabel,
         raw: item,
       };
     });

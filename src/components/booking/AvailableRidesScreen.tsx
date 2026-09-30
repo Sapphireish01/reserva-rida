@@ -13,58 +13,71 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { TripCardSkeleton } from "../ui";
 
+import {
+  formatDriverName,
+  formatPrice,
+  formatRecurrenceDays,
+  formatVehicleSummary,
+  useDiscoverTripsQuery,
+} from "../../hooks/useRiderBookings";
+
+export interface AvailableRideItem {
+  id: string;
+  driverName: string;
+  isVerified: boolean;
+  rating: number;
+  vehicle: string;
+  avatar: string;
+  startingPoint: string;
+  destination: string;
+  departureDate: string;
+  departureTime: string;
+  estimatedArrival?: string;
+  availableSeats: number;
+  price: string;
+  tripType: string;
+  raw?: any;
+}
+
 export interface AvailableRidesScreenProps {
   visible: boolean;
   onClose: () => void;
-  onSelectRide: (ride: any) => void;
+  onSelectRide: (ride: AvailableRideItem) => void;
   onOpenFilter: () => void;
 }
 
-const DUMMY_RIDES = [
+const FALLBACK_RIDES: AvailableRideItem[] = [
   {
-    id: "r1",
-    driverName: "Prosper Edward",
+    id: "18",
+    driverName: "Fade Bayo",
     isVerified: true,
-    rating: 4.5,
-    vehicle: "Honda Accord • Black • KTU345GX",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-    startingPoint: "Frebson Fitness Gym",
-    destination: "42, Montgomery Road Yaba",
-    departureDate: "Tomorrow 10:15AM",
-    estimatedArrival: "11:45AM • 12km",
-    availableSeats: 2,
-    price: "$10.12",
-    tripType: "Recurring Trip",
+    rating: 5,
+    vehicle: "Toyota Camry • Black • KTU-812-FP",
+    avatar: "https://prosper-django-bucket.s3.amazonaws.com/media/profile_pictures/default.jpg",
+    startingPoint: "10 Obe street, off Ajao Road, Ikeja",
+    destination: "Oluwatobi House, 73 Allen Avenue, Ikeja",
+    departureDate: "2026-09-22",
+    departureTime: "06:00 AM",
+    estimatedArrival: "07:15 AM",
+    availableSeats: 3,
+    price: "₦0.00",
+    tripType: "Mon • Custom",
   },
   {
-    id: "r2",
-    driverName: "Prosper Edward",
+    id: "13",
+    driverName: "Fade Bayo",
     isVerified: true,
-    rating: 4.5,
-    vehicle: "Honda Accord • Black • KTU345GX",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-    startingPoint: "Frebson Fitness Gym",
-    destination: "42, Montgomery Road Yaba",
-    departureDate: "25 Jun 2025",
-    departureTime: "10:30AM",
+    rating: 5,
+    vehicle: "Toyota Camry • Black • KTU-812-FP",
+    avatar: "https://prosper-django-bucket.s3.amazonaws.com/media/profile_pictures/default.jpg",
+    startingPoint: "10 Obe street, off Ajao Road, Ikeja",
+    destination: "Frebson Fitness Fym, Oshodi",
+    departureDate: "2026-09-19",
+    departureTime: "06:00 AM",
+    estimatedArrival: "07:00 AM",
     availableSeats: 2,
-    price: "$10.12",
-    tripType: "One-Time Trip",
-  },
-  {
-    id: "r3",
-    driverName: "Prosper Edward",
-    isVerified: true,
-    rating: 4.5,
-    vehicle: "Honda Accord • Black • KTU345GX",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-    startingPoint: "Frebson Fitness Gym",
-    destination: "42, Montgomery Road Yaba",
-    departureDate: "25 Jun 2025",
-    departureTime: "10:30AM",
-    availableSeats: 2,
-    price: "$10.12",
-    tripType: "One-Time Trip",
+    price: "₦15.00",
+    tripType: "Mon, Wed, Fri • Custom",
   },
 ];
 
@@ -74,7 +87,54 @@ export const AvailableRidesScreen: React.FC<AvailableRidesScreenProps> = ({
   onSelectRide,
   onOpenFilter,
 }) => {
+  const { data: discoverTrips, isLoading: isTripsLoading } = useDiscoverTripsQuery();
   const [viewState, setViewState] = useState<"loading" | "empty" | "populated">("populated");
+
+  const rides = React.useMemo<AvailableRideItem[]>(() => {
+    if (discoverTrips && discoverTrips.length > 0) {
+      return discoverTrips.map((item) => {
+        const formattedTime = item.departure_time
+          ? item.departure_time.length > 5
+            ? item.departure_time.slice(0, 5)
+            : item.departure_time
+          : "06:00 AM";
+
+        const tripFreq = item.trip_frequency
+          ? item.trip_frequency.charAt(0).toUpperCase() + item.trip_frequency.slice(1)
+          : "Custom";
+
+        const tripTypeLabel = item.is_recurring
+          ? (item.recurrence_days && item.recurrence_days.length > 0
+              ? formatRecurrenceDays(item.recurrence_days, item.trip_frequency)
+              : `${tripFreq} Trip`)
+          : "One-Time Trip";
+
+        return {
+          id: String(item.id),
+          driverName: formatDriverName(item.driver),
+          isVerified: true,
+          rating: (typeof item.driver === "object" && item.driver?.rating) ? item.driver.rating : 5,
+          vehicle: formatVehicleSummary(item.vehicle),
+          avatar:
+            (typeof item.driver === "object" && item.driver?.profile_picture) ||
+            "https://prosper-django-bucket.s3.amazonaws.com/media/profile_pictures/default.jpg",
+          startingPoint: item.pickup_location,
+          destination: item.destination,
+          departureDate: item.trip_date || "Upcoming",
+          departureTime: formattedTime,
+          estimatedArrival: formattedTime,
+          availableSeats: typeof item.available_seats === "number" ? item.available_seats : 2,
+          price: formatPrice(item.price_per_seat),
+          tripType: tripTypeLabel,
+          raw: item,
+        };
+      });
+    }
+    return FALLBACK_RIDES;
+  }, [discoverTrips]);
+
+  const activeLoading = viewState === "loading" || (isTripsLoading && rides.length === 0);
+  const activeEmpty = viewState === "empty" || (!isTripsLoading && rides.length === 0);
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -108,18 +168,18 @@ export const AvailableRidesScreen: React.FC<AvailableRidesScreenProps> = ({
             style={[styles.toggleChip, viewState === "populated" && styles.toggleChipActive]}
             onPress={() => setViewState("populated")}
           >
-            <Text style={[styles.toggleText, viewState === "populated" && styles.toggleTextActive]}>Rides ({DUMMY_RIDES.length})</Text>
+            <Text style={[styles.toggleText, viewState === "populated" && styles.toggleTextActive]}>Rides ({rides.length})</Text>
           </TouchableOpacity>
         </View>
 
         {/* Main Content Area */}
-        {viewState === "loading" ? (
+        {activeLoading ? (
           <ScrollView style={styles.listContent} showsVerticalScrollIndicator={false}>
             <TripCardSkeleton />
             <TripCardSkeleton />
             <TripCardSkeleton />
           </ScrollView>
-        ) : viewState === "empty" ? (
+        ) : activeEmpty ? (
           <View style={styles.emptyContainer}>
             {/* UFO Illustration Placeholder */}
             <View style={styles.ufoCircle}>
@@ -134,7 +194,7 @@ export const AvailableRidesScreen: React.FC<AvailableRidesScreenProps> = ({
           </View>
         ) : (
           <ScrollView style={styles.listContent} showsVerticalScrollIndicator={false}>
-            {DUMMY_RIDES.map((ride) => (
+            {rides.map((ride) => (
               <TouchableOpacity
                 key={ride.id}
                 style={styles.rideCard}

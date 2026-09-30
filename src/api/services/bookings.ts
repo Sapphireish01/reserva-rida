@@ -30,12 +30,15 @@ export interface DiscoverTripItem {
   driver: DriverSummary;
   vehicle: VehicleSummary;
   is_recurring: boolean;
+  recurrence_days?: string[];
   pickup_location: string;
   destination: string;
   trip_date: string;
   departure_time: string;
   trip_frequency: string;
   end_date: string;
+  available_seats?: number;
+  price_per_seat?: string;
 }
 
 export interface PopularRouteItem {
